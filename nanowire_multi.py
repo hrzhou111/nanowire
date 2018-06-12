@@ -9,7 +9,7 @@ import gdspy
 import numpy
 import shape
 
-def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals_length,itr,elec_width,pin_length=60):
+def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals_length,mark,itr,elec_width,pin_length=60):
     """
     用于绘制任意大小，并联根数的纳米线版图，python版本：2.7.14,3.3，只画方形器件
     长度单位：μm
@@ -31,12 +31,14 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
     pals_length = float(pals_length)
     elec_width = int(elec_width)
     pin_length = float(pin_length)
-    
     minedge = 10
+    if length>100:
+        minedge = length/3   #大面积器件辅助曝光区应该很大
+    
+    
     maxdiameter = length+2*minedge #外围结构为5um，设置纳米线电子束曝光尺寸大小
     Cellname = "nanowire"+str(itr)
     single_cell = gdspy.Cell(Cellname,exclude_from_current=True)
-    mark = itr
     #gdspy.GdsLibrary.add(single_cell,overwrite_duplication = True)
 
     if is_interrupt==1 and pals_length < pitch-width:
@@ -159,21 +161,21 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
                         steppoint1 = (startpoint[i][0]+k*step,startpoint[i][1])
                         steppoint2 = (startpoint[i][0]+(k+1)*step-width*(n-1),finalpoint[i][1])
                         polym = gdspy.Rectangle(steppoint1,steppoint2,layer = 1,datatype = 1)
-                        polym.fillet(pitch-width,points_per_2pi = 20)
+                        polym.fillet(pitch-width,points_per_2pi = 10)
                         single_cell.add(polym)
                         k = k+1
                     else:
                         steppoint1 = (startpoint[i][0]+k*step,startpoint[i][1])
                         steppoint2 = finalpoint[i]
                         polym = gdspy.Rectangle(steppoint1,steppoint2,layer = 1,datatype = 1)
-                        polym.fillet(pitch-width,points_per_2pi = 20)
+                        polym.fillet(pitch-width,points_per_2pi = 10)
                         single_cell.add(polym)
             else:
                 if i not in location:
                     polym = gdspy.Rectangle(startpoint[i],
                                 finalpoint[i],
                                 layer = 1,datatype = 1)
-                    polym.fillet((pitch-width)/2,points_per_2pi = 20)
+                    polym.fillet((pitch-width)/2,points_per_2pi = 10)
                     single_cell.add(polym)
         if i in location:
             if i in location1:
@@ -181,6 +183,7 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
                 if device_shape==0:
                     finalpoint[i] = (j*numpy.sqrt((max_length/2+3)**2-((half-i)*pitch)**2),
                               finalpoint[i][1])
+                    j = -j
                 elif device_shape==1:
                         finalpoint[i] = (j * (max_length / 2 + 3),
                                   finalpoint[i][1])
@@ -188,7 +191,7 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
             polym = gdspy.Rectangle(startpoint[i],
                                 finalpoint[i],
                                 layer = 1,datatype = 1)
-            polym.fillet((pitch-width)/2,points_per_2pi = 20)
+            polym.fillet((pitch-width)/2,points_per_2pi = 10)
             single_cell.add(polym)            
         i = i+1   
         
@@ -244,10 +247,10 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
                                 (-maxdiameter/2,i*pitch+length/2+pitch-width),**layer)
         single_cell.add(elec2)
         elec3 = gdspy.Rectangle((-half_elecwidth,(-i-1)*pitch-length/2),
-                                (-maxdiameter/2,-i*pitch-length/2-(pitch-width)),**layer)
+                                (-maxdiameter/2,(-i-1)*pitch-length/2-(pitch-width)),**layer)
         single_cell.add(elec3)
         elec4 = gdspy.Rectangle((half_elecwidth,(-i-1)*pitch-length/2),
-                                (maxdiameter/2,-i*pitch-length/2-(pitch-width)),**layer)
+                                (maxdiameter/2,(-i-1)*pitch-length/2-(pitch-width)),**layer)
         single_cell.add(elec4)
         i = i+1
 
@@ -256,6 +259,8 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
     隔离线，宽度1um，伸出纳米线区域elec_width/2+pin_ength
     """
 #    length = oldl   #需要原始直径值
+    if pin_length>length:
+        length = maxdiameter
 
     if elec_width/2>length/2+pin_length-10:
         a = (elec_width/2-length/2-pin_length)/pin_length
@@ -337,28 +342,23 @@ def nanowire_binary(number,width,pitch,length,n,m,is_interrupt,device_shape,pals
     4umX100μm大小十字
     位置，-500um，500um
     """
-    markers = [1,9,41,73,81]
-    if mark in markers:
-        cross = gdspy.Rectangle((-450,498),(-550,502),
-                            **layer)
+    if mark != 0: 
+        cross = gdspy.Rectangle((-mark+75,mark-2),(-mark-75,mark+2),
+                                layer = 1,datatype = 1)
         single_cell.add(cross)
-        cross = gdspy.Rectangle((-498,450),(-502,550),
-                            **layer)
+        cross = gdspy.Rectangle((-mark+2,mark-75),(-mark-2,mark+75),
+                                layer = 1,datatype = 1)
         single_cell.add(cross)
-    
     
     """
     编号
     """
-    text = gdspy.Text(str(number),20,(1000,300),
-                      **layer)
+    if length>100:
+        text = gdspy.Text(str(number),20,(800,300),**layer)
+    else:
+        text = gdspy.Text(str(number),20,(300,300),**layer)
     single_cell.add(text)
     
-    
-    merged = gdspy.fast_boolean( gdspy.Rectangle((-maxdiameter/2,-maxdiameter/2),(maxdiameter/2,maxdiameter/2)),gdspy.CellReference(single_cell), 'not', max_points=190)
-
-# Offset the path shape by 0.5 and add it to the cell.
-    single_cell.add(merged)
     
     return single_cell
 
