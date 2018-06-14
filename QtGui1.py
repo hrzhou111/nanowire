@@ -59,7 +59,7 @@ class Ui_Dialog(QDialog):
         self.textBrowser.setText(self.fileName)
         self.textBrowser.show()
 
-
+  
         if not self.fileName:
             return
 
